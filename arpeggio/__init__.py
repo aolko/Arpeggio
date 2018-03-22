@@ -19,7 +19,7 @@ import bisect
 from arpeggio.utils import isstr
 import types
 
-__version__ = "1.7"
+__version__ = "1.7.1"
 
 if sys.version < '3':
     text = unicode
@@ -127,19 +127,22 @@ class DebugPrinter(object):
     def __init__(self, **kwargs):
 
         self.debug = kwargs.pop("debug", False)
+        self.file = kwargs.pop("file", sys.stdout)
         self._current_ident = 0
 
         super(DebugPrinter, self).__init__(**kwargs)
 
     def dprint(self, message, ident_change=0):
         """
-        Handle debug message. Current implementation will print to stdout using
-        the current identation level.
+        Handle debug message. Print to the stream specified by the 'file'
+        keyword argument at the current indentation level. Default stream is
+        stdout.
         """
         if ident_change < 0:
             self._current_ident += ident_change
 
-        print(("%s%s" % ("   " * self._current_ident, message)))
+        print(("%s%s" % ("   " * self._current_ident, message)),
+              file=self.file)
 
         if ident_change > 0:
             self._current_ident += ident_change
@@ -724,8 +727,8 @@ class Match(ParsingExpression):
                             pos = parser.position
                             ws = parser.ws
                             i = parser.input
-                            l = len(i)
-                            while pos < l and i[pos] in ws:
+                            length = len(i)
+                            while pos < length and i[pos] in ws:
                                 pos += 1
                             parser.position = pos
                 except NoMatch:
@@ -742,8 +745,8 @@ class Match(ParsingExpression):
             pos = parser.position
             ws = parser.ws
             i = parser.input
-            l = len(i)
-            while pos < l and i[pos] in ws:
+            length = len(i)
+            while pos < length and i[pos] in ws:
                 pos += 1
             parser.position = pos
 
@@ -756,7 +759,7 @@ class Match(ParsingExpression):
                         parser.position,
                         parser.context()))
 
-        if parser.position in parser.comment_positions:
+        if parser.skipws and parser.position in parser.comment_positions:
             # Skip comments if already parsed.
             parser.position = parser.comment_positions[parser.position]
         else:
@@ -779,8 +782,9 @@ class RegExMatch(Match):
             It will be used to create regular expression using re.compile.
         ignore_case(bool): If case insensitive match is needed.
             Default is None to support propagation from global parser setting.
-        multiline(bool): allow regex to works on multiple lines (re.DOTALL flag).
-            Default is None to support propagation from global parser setting.
+        multiline(bool): allow regex to works on multiple lines
+            (re.DOTALL flag). Default is None to support propagation from
+            global parser setting.
         str_repr(str): A string that is used to represent this regex.
         re_flags: flags parameter for re.compile if neither ignore_case
             or multiple are set.
